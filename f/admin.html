@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government Admin Portal | Seva AI</title>
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/2.0.2/quill.snow.min.css" rel="stylesheet" />
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { display: flex; height: 100vh; background: #f4f7f6; overflow: hidden; color: #333; }
+        
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 16px 20px; min-width: 250px; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 500; color: #2d3748; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); border-left: 4px solid transparent; }
+        .toast.show { transform: translateX(0); opacity: 1; pointer-events: auto; }
+        .toast.success { border-left-color: #38a169; }
+        .toast.error { border-left-color: #e53e3e; }
+        .toast.info { border-left-color: #3182ce; }
+        .toast-icon { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        #login-overlay, .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 77, 64, 0.95); display: flex; justify-content: center; align-items: center; z-index: 3000; }
+        .modal-overlay { background: rgba(0,0,0,0.6); display: none; backdrop-filter: blur(4px); }
+        .login-box, .modal-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 380px; text-align: center; }
+        .modal-box { width: 700px; max-height: 85vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+        
+        .login-box h2 { color: #00695c; margin-bottom: 25px; font-weight: 700; }
+        .login-box input { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #dce1e6; border-radius: 8px; outline: none; font-size: 15px; transition: border-color 0.2s; }
+        .login-box input:focus { border-color: #00695c; }
+        .login-box button { width: 100%; padding: 14px; background: #00695c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 15px; font-size: 16px; transition: background 0.2s; }
+        .login-box button:hover { background: #004d40; }
+
+        #custom-confirm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 4000; display: none; justify-content: center; align-items: center; }
+        .confirm-box { background: white; border-radius: 12px; padding: 30px; width: 400px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); text-align: center; }
+        .confirm-title { font-size: 18px; font-weight: 700; color: #1a202c; margin-bottom: 10px; }
+        .confirm-text { font-size: 14px; color: #4a5568; margin-bottom: 25px; line-height: 1.5; }
+        .confirm-actions { display: flex; justify-content: center; gap: 15px; }
+
+        .sidebar { width: 280px; background: #004d40; color: white; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 10; }
+        .sidebar-header { padding: 30px 25px; font-size: 22px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.08); letter-spacing: 0.5px; }
+        .nav-links { list-style: none; padding: 20px 0; flex: 1; }
+        .nav-links li { padding: 16px 30px; cursor: pointer; transition: 0.2s; font-size: 15px; font-weight: 500; color: #b2dfdb; }
+        .nav-links li:hover, .nav-links li.active { background: #00695c; color: white; border-left: 5px solid #f39c12; padding-left: 25px; }
+        .logout-btn { background: #c0392b; color: white; padding: 18px; text-align: center; cursor: pointer; font-weight: bold; font-size: 15px; transition: background 0.2s; }
+        .logout-btn:hover { background: #a53125; }
+        
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { background: white; padding: 20px 35px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; z-index: 5; }
+        .topbar h2 { font-size: 20px; font-weight: 600; color: #2c3e50; }
+        .dashboard-area { padding: 35px; overflow-y: auto; flex: 1; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 25px; margin-bottom: 35px; }
+        .stat-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f2f5; }
+        .stat-card h3 { color: #6c757d; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .stat-card .value { font-size: 32px; font-weight: 800; color: #00695c; }
+
+        .panel { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f2f5; margin-bottom: 30px; overflow: hidden; }
+        .panel-header { padding: 20px 25px; border-bottom: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+        .panel-header h2 { font-size: 18px; color: #2d3748; font-weight: 600; margin: 0; }
+        
+        .controls-toolbar { display: flex; gap: 12px; }
+        .form-control { padding: 10px 15px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 14px; outline: none; transition: border 0.2s; background: #fff; }
+        .form-control:focus { border-color: #00695c; box-shadow: 0 0 0 3px rgba(0,105,92,0.1); }
+        
+        table.data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table thead { background: #f8fafc; }
+        .data-table th { padding: 16px 25px; font-size: 12px; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #edf2f7; }
+        .data-table td { padding: 16px 25px; font-size: 14px; color: #4a5568; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
+        .data-table tbody tr:hover { background-color: #f8fafc; }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        .btn-outline { border: 1px solid #00695c; color: #00695c; background: transparent; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-weight: 600; font-size: 13px; }
+        .btn-outline:hover { background: #00695c; color: white; }
+        .btn-solid { background: #00695c; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; }
+        .btn-solid:hover { background: #004d40; }
+        .btn-solid:disabled { background: #a0aec0; cursor: not-allowed; }
+        .btn-danger { background: #fff; color: #e53e3e; border: 1px solid #fc8181; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s; }
+        .btn-danger:hover { background: #e53e3e; color: white; }
+        .btn-cancel { background: #edf2f7; color: #4a5568; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s; }
+        .btn-cancel:hover { background: #e2e8f0; }
+
+        .badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .badge.reported { background: #fed7d7; color: #c53030; }
+        .badge.review { background: #feebc8; color: #c05621; }
+        .badge.resolved { background: #c6f6d5; color: #276749; }
+        .badge.filetype { background: #e6fffa; color: #285e61; border: 1px solid #b2f5ea; }
+
+        .modal-header { padding: 20px 25px; background: #f8fafc; border-bottom: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center; }
+        .chat-container { flex: 1; overflow-y: auto; background: #fff; padding: 25px; display: flex; flex-direction: column; gap: 15px; }
+        .bubble { padding: 14px 18px; border-radius: 18px; max-width: 80%; font-size: 14px; line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .bubble.user { background: #00695c; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .bubble.bot { background: #f1f5f9; color: #334155; align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid #e2e8f0; }
+
+        .view-section { display: none; animation: fadeIn 0.3s; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .workspace-layout { display: flex; gap: 25px; height: 550px; padding: 25px; background: #f8fafc; }
+        .editor-container { flex: 1; display: flex; flex-direction: column; }
+        .preview-container { flex: 1; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+
+        .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .report-item { background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px; }
+        .report-item label { font-size: 11px; text-transform: uppercase; color: #718096; font-weight: 700; display: block; margin-bottom: 5px; }
+        .report-item .val { font-size: 16px; font-weight: 600; color: #1a202c; }
+        .score-box { background: #1e293b; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+        .score-box .big-score { font-size: 36px; font-weight: 800; color: #38bdf8; }
+        .text-panel { background: #fff; border-left: 4px solid #00695c; padding: 15px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .text-panel h4 { color: #2d3748; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; }
+        .text-panel p { color: #4a5568; font-size: 14px; line-height: 1.6; }
+        .status-tag { padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px; display: inline-block; }
+        .status-fail { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .status-pass { background: #dcfce3; color: #166534; border: 1px solid #4ade80; }
+        .status-review { background: #fef08a; color: #854d0e; border: 1px solid #facc15; }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div id="custom-confirm-overlay">
+        <div class="confirm-box">
+            <div class="confirm-title">Confirm Action</div>
+            <div class="confirm-text" id="custom-confirm-message">This administrative action cannot be reversed.</div>
+            <div class="confirm-actions">
+                <button class="btn-cancel" id="confirm-cancel-btn">Cancel</button>
+                <button class="btn-danger" id="confirm-ok-btn" style="background:#e53e3e; color:white;">Authorize Deletion</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>Seva AI Portal</h2>
+            <input type="text" id="username" placeholder="Authorized User ID">
+            <input type="password" id="password" placeholder="Passcode">
+            <button id="loginBtn">Sign In</button>
+            <div id="login-error" style="color:#e53e3e; display:none; margin-top:15px; font-size: 14px; font-weight: 500;">Authentication Failed.</div>
+        </div>
+    </div>
+
+    <div id="transcript-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modal-session-title" style="color: #2d3748; margin:0; font-size: 16px;">Session Transcript Log</h3>
+                <span onclick="document.getElementById('transcript-modal').style.display='none'" style="cursor: pointer; font-size: 24px; color: #a0aec0; line-height: 1;">&times;</span>
+            </div>
+            <div id="modal-chat-content" class="chat-container"></div>
+        </div>
+    </div>
+
+    <div id="evaluation-modal" class="modal-overlay">
+        <div class="modal-box" style="width: 600px;">
+            <div class="modal-header">
+                <h3 style="color: #2d3748; margin:0; font-size: 16px;">Evaluation Report</h3>
+                <span onclick="document.getElementById('evaluation-modal').style.display='none'" style="cursor: pointer; font-size: 24px; color: #a0aec0; line-height: 1;">&times;</span>
+            </div>
+            <div style="padding: 25px; overflow-y: auto; text-align: left;">
+                
+                <div class="score-box">
+                    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8;">Overall Evaluation Score</div>
+                    <div class="big-score" id="eval-overall-score">-- / 10</div>
+                    <div id="eval-status-badge" style="margin-top: 10px;"></div>
+                </div>
+
+                <div class="report-grid">
+                    <div class="report-item"><label>Trace ID</label><div class="val" id="eval-session-id" style="font-family: monospace;">---</div></div>
+                    <div class="report-item"><label>Generation Model</label><div class="val">Amazon Nova Lite</div></div>
+                    <div class="report-item"><label>Auditor Model</label><div class="val">Amazon Nova Pro</div></div>
+                    <div class="report-item"><label>Unsupported Content</label><div class="val" id="eval-hallucination">---</div></div>
+                </div>
+
+                <h4 style="margin-bottom: 15px; color: #4a5568; font-size: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Performance Metrics (out of 5)</h4>
+                <div class="report-grid">
+                    <div class="report-item"><label>Source Accuracy</label><div class="val" id="eval-groundedness">--/5</div></div>
+                    <div class="report-item"><label>Relevance</label><div class="val" id="eval-relevance">--/5</div></div>
+                    <div class="report-item"><label>Completeness</label><div class="val" id="eval-completeness">--/5</div></div>
+                    <div class="report-item"><label>Response Fidelity</label><div class="val" id="eval-faithfulness">--/5</div></div>
+                </div>
+
+                <div class="text-panel" style="border-left-color: #e53e3e;">
+                    <h4>Evaluation Summary</h4>
+                    <p id="eval-reason">Fetching evaluation notes...</p>
+                </div>
+
+                <div class="text-panel" style="border-left-color: #3182ce; background: #f0f9ff;">
+                    <h4>Recommended Action</h4>
+                    <p id="eval-action">---</p>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">Seva AI Workspace</div>
+        <ul class="nav-links">
+            <li id="nav-overview" class="active">Administrative Overview</li>
+            <li id="nav-kb">Knowledge Repository</li>
+            <li id="nav-feedback">Feedback Management</li>
+        </ul>
+        <div class="logout-btn" onclick="logout()">Sign Out</div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <h2 id="page-title">Administrative Overview</h2>
+            <div>
+                <button onclick="loadDashboardStats(); loadFeedbackData(); loadS3Docs(); showToast('Data refreshed successfully.', 'success');" class="btn-outline" style="margin-right: 15px; padding: 6px 12px; font-size: 12px;">Refresh Data</button>
+                <span style="background: #e6fffa; color: #00695c; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;">Administrator Logged In</span>
+            </div>
+        </header>
+
+        <section class="dashboard-area">
+            
+            <div id="view-overview" class="view-section active">
+                <div class="stats-grid">
+                    <div class="stat-card"><h3>Total Interactions</h3><div class="value" id="stat-convos">---</div></div>
+                    <div class="stat-card"><h3>Average Rating</h3><div class="value" id="stat-score">---</div></div>
+                    <div class="stat-card"><h3>Indexed Documents</h3><div class="value" id="stat-docs">---</div></div>
+                </div>
+            </div>
+
+            <div id="view-feedback" class="view-section">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Feedback Management</h2>
+                        <div class="controls-toolbar">
+                            <input type="text" id="searchFeedback" class="form-control" placeholder="Search Trace ID..." onkeyup="filterTable()">
+                            <select id="filterStatus" class="form-control" onchange="filterTable()">
+                                <option value="all">All Statuses</option>
+                                <option value="Escalated">Escalated (1-2)</option>
+                                <option value="Pending Review">Pending Review (3)</option>
+                                <option value="Closed">Closed (4-5)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Timestamp</th><th>Interaction Trace ID</th><th>Rating</th><th>Status</th><th>Audit Score</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="feedback-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-kb" class="view-section">
+                
+                <div id="doc-list-view" class="panel">
+                    <div class="panel-header">
+                        <h2>Knowledge Repository</h2>
+                        <input type="text" id="searchDocs" class="form-control" placeholder="Search files..." onkeyup="filterDocs()" style="width: 250px;">
+                    </div>
+
+                    <div style="background: #f8fafc; padding: 20px 25px; border-bottom: 1px solid #edf2f7; display: flex; gap: 15px; align-items: center;">
+                        <span style="font-size: 14px; font-weight: 600; color: #4a5568;">Upload Resource:</span>
+                        <input type="text" id="uploadSourceName" class="form-control" placeholder="Optional File Key" style="width: 250px;">
+                        <input type="file" id="fileUploader" accept=".txt,.json,.pdf,.docx" style="font-size: 14px;">
+                        <button onclick="uploadNewFile(event)" class="btn-solid">Upload Document</button>
+                    </div>
+
+                    <table class="data-table">
+                        <thead><tr><th>Resource Name</th><th>Format</th><th style="text-align: right;">Operations</th></tr></thead>
+                        <tbody id="s3-docs-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="doc-edit-view" class="panel" style="display: none;">
+                    <div class="panel-header">
+                        <h2 id="editing-doc-title">Resource Management</h2>
+                        <div>
+                            <button onclick="closeEditor()" class="btn-cancel" style="margin-right: 10px;">Close Viewer</button>
+                            <button id="saveEditBtn" onclick="saveDocumentToS3()" class="btn-solid">Save Changes</button>
+                        </div>
+                    </div>
+
+                    <div class="workspace-layout">
+                        <div class="editor-container">
+                            <h4 style="margin-bottom: 12px; color: #4a5568; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Content Editor</h4>
+                            
+                            <textarea id="liveDocEditor" style="width: 100%; flex: 1; padding: 15px; border: 1px solid #cbd5e0; border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.6; outline: none; background: #1e293b; color: #f8fafc; display: none; resize: none;"></textarea>
+                            
+                            <div id="quillEditorWrapper" style="flex: 1; display: none; flex-direction: column; background: white; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e0;">
+                                <div id="quillToolbar" style="border-bottom: 1px solid #cbd5e0;"></div>
+                                <div id="liveRichEditor" style="flex: 1; font-size: 15px;"></div>
+                            </div>
+
+                            <div id="pdfAnnotatorConsole" style="display: none; padding: 25px; background: white; border: 1px solid #cbd5e0; border-radius: 8px; flex: 1;">
+                                <h5 style="margin-bottom: 10px; color: #2d3748; font-size: 15px;">Resource Annotations</h5>
+                                <p style="font-size: 13px; color: #718096; margin-bottom: 15px; line-height: 1.5;">PDF resources are strictly read-only. Provide required administrative context or metadata parameters below:</p>
+                                <textarea id="pdfAnnotationText" class="form-control" placeholder="Input required metadata or context directives..." style="width: 100%; height: 150px; resize: none;"></textarea>
+                            </div>
+
+                            <div id="validation-bar" style="margin-top: 15px; padding: 12px 15px; border-radius: 8px; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; border: 1px solid transparent;">
+                                <span id="validation-text">Validation Status</span>
+                            </div>
+                        </div>
+
+                        <div class="preview-container">
+                            <div style="padding: 12px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 13px; color: #4a5568; display: flex; align-items: center; gap: 8px;">
+                                Output Preview
+                            </div>
+                            <div id="previewContentWindow" style="flex: 1; padding: 25px; overflow-y: auto; background: white; font-size: 15px; line-height: 1.7; color: #334155;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/2.0.2/quill.min.js"></script>
+
+    <script>
+        const BACKEND_URL = "http://32.192.50.98:8000";
+        
+        let currentEditingFile = "";
+        let quillInstance = null;
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let prefix = 'INFO:';
+            if(type === 'success') prefix = 'SUCCESS:';
+            if(type === 'error') prefix = 'ERROR:';
+            
+            toast.innerHTML = `<span class="toast-icon" style="font-weight:bold;">${prefix}</span><span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('custom-confirm-overlay');
+                document.getElementById('custom-confirm-message').innerText = message;
+                overlay.style.display = 'flex';
+                const handleCancel = () => { overlay.style.display = 'none'; cleanUp(); resolve(false); };
+                const handleOk = () => { overlay.style.display = 'none'; cleanUp(); resolve(true); };
+                document.getElementById('confirm-cancel-btn').addEventListener('click', handleCancel);
+                document.getElementById('confirm-ok-btn').addEventListener('click', handleOk);
+                function cleanUp() {
+                    document.getElementById('confirm-cancel-btn').removeEventListener('click', handleCancel);
+                    document.getElementById('confirm-ok-btn').removeEventListener('click', handleOk);
+                }
+            });
+        }
+
+        function initQuillEngine() {
+            if(!quillInstance) {
+                quillInstance = new Quill('#liveRichEditor', {
+                    modules: { toolbar: [ [{ header: [1, 2, false] }], ['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }] ] },
+                    theme: 'snow'
+                });
+            }
+        }
+
+        function checkAuth() {
+            if (localStorage.getItem("admin_token")) {
+                document.getElementById("login-overlay").style.display = "none";
+                loadDashboardStats(); 
+            }
+        }
+
+        document.getElementById("loginBtn").addEventListener("click", async () => {
+            const user = document.getElementById("username").value.trim();
+            const pass = document.getElementById("password").value.trim();
+            try {
+                const res = await fetch(`${BACKEND_URL}/admin/login`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem("admin_token", data.token);
+                    window.location.reload();
+                } else {
+                    document.getElementById("login-error").style.display = "block";
+                }
+            } catch (err) { showToast("Unable to connect to the server.", "error"); }
+        });
+
+        function logout() { localStorage.removeItem("admin_token"); window.location.reload(); }
+
+        async function fetchSecure(url, options = {}) {
+            const token = localStorage.getItem("admin_token");
+            const headers = { ...options.headers, "x-admin-token": token };
+            const response = await fetch(url, { ...options, headers, cache: "no-store" });
+            if (response.status === 401) { logout(); throw new Error("Unauthorized"); }
+            return response;
+        }
+
+        const tabs = ['overview', 'feedback', 'kb'];
+        tabs.forEach(tab => {
+            document.getElementById(`nav-${tab}`).addEventListener('click', () => {
+                tabs.forEach(t => {
+                    document.getElementById(`nav-${t}`).classList.remove('active');
+                    document.getElementById(`view-${t}`).classList.remove('active');
+                });
+                document.getElementById(`nav-${tab}`).classList.add('active');
+                document.getElementById(`view-${tab}`).classList.add('active');
+                
+                if (tab === 'overview') { document.getElementById('page-title').innerText = "Administrative Overview"; loadDashboardStats(); }
+                else if (tab === 'feedback') { document.getElementById('page-title').innerText = "Feedback Management"; loadFeedbackData(); }
+                else if (tab === 'kb') { document.getElementById('page-title').innerText = "Knowledge Repository"; loadS3Docs(); }
+            });
+        });
+
+        async function loadDashboardStats() {
+            try {
+                const res = await fetchSecure(`${BACKEND_URL}/admin/stats`);
+                const data = await res.json();
+                document.getElementById('stat-convos').innerText = data.total_conversations ?? "---";
+                document.getElementById('stat-score').innerText = data.average_score ? `${data.average_score} / 5` : "---";
+                const s3Res = await fetchSecure(`${BACKEND_URL}/admin/s3_documents`);
+                const s3Data = await s3Res.json();
+                document.getElementById('stat-docs').innerText = s3Data.files ? s3Data.files.length : "---";
+            } catch (err) {}
+        }
+
+        async function loadFeedbackData() {
+            try {
+                const res = await fetchSecure(`${BACKEND_URL}/admin/feedback`);
+                const data = await res.json();
+                const tbody = document.getElementById('feedback-table-body');
+                tbody.innerHTML = ""; 
+                if (data.feedbacks) {
+                    data.feedbacks.forEach(fb => {
+                        const dateString = new Date(fb.timestamp).toLocaleString();
+                        const rating = fb.rating || 0;
+                        const ratingStr = `${rating} / 5`;
+                        const sessionId = fb.session_id || "Unknown";
+                        
+                        let statusText = "Closed"; let badgeClass = "resolved";
+                        if (rating <= 2) { statusText = "Escalated"; badgeClass = "reported"; }
+                        else if (rating === 3) { statusText = "Pending Review"; badgeClass = "review"; }
+
+                        let scoreDisplay = '';
+                        if (fb.groundedness || fb.overall_score || fb['overall score']) {
+                            scoreDisplay = `<span style="background: #e6fffa; color: #00695c; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Evaluated</span>`;
+                        } else if (rating >= 4) {
+                            scoreDisplay = `<span style="background: #f0f4f8; color: #334e68; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid #d9e2ec;">Verified</span>`;
+                        } else {
+                            scoreDisplay = `<span style="background: #fff9db; color: #f59f00; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Pending Evaluation</span>`;
+                        }
+
+                        tbody.innerHTML += `
+                            <tr class="feedback-row" data-session="${sessionId}" data-status="${statusText}">
+                                <td><span style="color: #718096; font-size: 13px;">${dateString}</span></td>
+                                <td><strong style="color: #2d3748; font-family: monospace;">${sessionId.substring(0, 12)}...</strong></td>
+                                <td style="color: #4a5568; font-size: 14px; font-weight: 600;">${ratingStr}</td>
+                                <td><span class="badge ${badgeClass}">${statusText}</span></td>
+                                <td>${scoreDisplay}</td>
+                                <td>
+                                    <button onclick="viewChat('${sessionId}')" class="btn-outline" style="padding: 6px 10px; font-size: 12px; margin-bottom: 4px; width: 100%;">View Conversation</button>
+                                    <button onclick="viewEvaluationReport('${fb.query_id}', '${sessionId}')" class="btn-solid" style="padding: 6px 10px; font-size: 12px; width: 100%; background: #1e293b;">View Evaluation</button>
+                                </td>
+                            </tr>`;
+                    });
+                }
+            } catch (err) {}
+        }
+
+        function filterTable() {
+            const searchTerm = document.getElementById("searchFeedback").value.toLowerCase();
+            const statusFilter = document.getElementById("filterStatus").value;
+            document.querySelectorAll(".feedback-row").forEach(row => {
+                const matchesSearch = row.getAttribute("data-session").toLowerCase().includes(searchTerm);
+                const matchesStatus = (statusFilter === "all") || (row.getAttribute("data-status") === statusFilter);
+                row.style.display = (matchesSearch && matchesStatus) ? "" : "none";
+            });
+        }
+
+        async function viewChat(sessionId) {
+            const modal = document.getElementById("transcript-modal");
+            const contentBox = document.getElementById("modal-chat-content");
+            modal.style.display = "flex";
+            document.getElementById("modal-session-title").innerText = `Trace ID: ${sessionId.substring(0, 15)}...`;
+            contentBox.innerHTML = `<div style="text-align: center; color: #a0aec0; padding: 20px;">Retrieving transcript data...</div>`;
+            try {
+                const res = await fetchSecure(`${BACKEND_URL}/admin/session_chat/${sessionId}`);
+                const data = await res.json();
+                contentBox.innerHTML = ""; 
+                
+                if (data.logs && data.logs.length > 0) {
+                    // PHASE 3 VISUAL: Text-only badge for S3 retrieval
+                    if (data.source === "S3 Cold Storage") {
+                        contentBox.innerHTML += `
+                        <div style="background: #e2e8f0; color: #4a5568; padding: 10px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center; margin-bottom: 15px; border: 1px solid #cbd5e0; letter-spacing: 0.5px; text-transform: uppercase;">
+                            SYSTEM NOTICE: RECORD RETRIEVED FROM COLD STORAGE ARCHIVE
+                        </div>`;
+                    }
+                    
+                    data.logs.forEach(log => {
+                        contentBox.innerHTML += `<div class="bubble user"><strong style="opacity:0.8; font-size:12px;">Citizen</strong><br>${log.question}</div>`;
+                        const botHTML = marked.parse(log.answer);
+                        contentBox.innerHTML += `<div class="bubble bot"><strong style="opacity:0.8; font-size:12px;">Automated Agent</strong><br>${botHTML}</div>`;
+                    });
+                } else {
+                    contentBox.innerHTML = `<div style="text-align: center; color: #e53e3e; padding: 20px;">No historical data available. Transcript purged per retention policy.</div>`;
+                }
+            } catch (err) { showToast("Unable to connect to the server.", "error"); }
+        }
+
+        async function viewEvaluationReport(queryId, sessionId) {
+            document.getElementById("evaluation-modal").style.display = "flex";
+            document.getElementById("eval-session-id").innerText = sessionId.substring(0, 12) + "...";
+            
+            document.getElementById("eval-overall-score").innerText = "Loading...";
+            document.getElementById("eval-reason").innerText = "Retrieving audit parameters...";
+            document.getElementById("eval-action").innerText = "Processing...";
+            document.getElementById("eval-status-badge").innerHTML = "";
+            document.getElementById("eval-groundedness").innerText = "--/5";
+            document.getElementById("eval-relevance").innerText = "--/5";
+            document.getElementById("eval-completeness").innerText = "--/5";
+            document.getElementById("eval-faithfulness").innerText = "--/5";
+            document.getElementById("eval-hallucination").innerHTML = "---";
+
+            try {
+                const res = await fetchSecure(`${BACKEND_URL}/admin/evaluation/${queryId}`);
+                const data = await res.json();
+
+                if (data.success && data.evaluation) {
+                    const ev = data.evaluation;
+                    
+                    const grounded = parseFloat(ev.groundedness) || 0;
+                    const relevant = parseFloat(ev.relevance) || 0;
+                    const completeness = parseFloat(ev.completeness) || 0;
+                    const faithfulness = parseFloat(ev.faithfulness) || 0;
+                    
+                    let dbOverallScore = parseFloat(ev['overall score']) || parseFloat(ev.overall_score);
+                    
+                    if (!dbOverallScore) {
+                        dbOverallScore = ((grounded + relevant + completeness + faithfulness) / 4) * 2;
+                    }
+
+                    document.getElementById("eval-groundedness").innerText = `${grounded}/5`;
+                    document.getElementById("eval-relevance").innerText = `${relevant}/5`;
+                    document.getElementById("eval-completeness").innerText = `${completeness}/5`;
+                    document.getElementById("eval-faithfulness").innerText = `${faithfulness}/5`;
+                    
+                    const passed = ev.pass === true || ev.pass === "true" || ev.pass === "Yes" || dbOverallScore >= 8.0;
+
+                    document.getElementById("eval-hallucination").innerHTML = (!passed && grounded <= 3) 
+                        ? "<span style='color: #e53e3e; font-weight:bold;'>Unsupported Content Detected</span>" 
+                        : "<span style='color: #38a169; font-weight:bold;'>NONE DETECTED</span>";
+
+                    document.getElementById("eval-overall-score").innerText = `${dbOverallScore.toFixed(1)} / 10`;
+                    document.getElementById("eval-reason").innerText = ev.notes || "No additional parameters provided.";
+
+                    let statusHTML = "";
+                    let suggestedAction = "";
+
+                    if (passed) {
+                        statusHTML = "<span class='status-tag status-pass'>Compliant</span>";
+                        suggestedAction = "No manual action required. Output parameters satisfy operational standards.";
+                    } else if (dbOverallScore >= 5.0) {
+                        statusHTML = "<span class='status-tag status-review'>Requires Review</span>";
+                        suggestedAction = "Secondary review suggested. Agent operated within constraints but exhibited suboptimal resolution metrics.";
+                    } else {
+                        statusHTML = "<span class='status-tag status-fail'>Review Required</span>";
+                        if (grounded <= 2) {
+                            suggestedAction = "CRITICAL DEVIATION: Required to verify Knowledge Repository alignment.";
+                        } else {
+                            suggestedAction = "PROTOCOL BREACH: Agent response failed to meet standard procedural guidelines.";
+                        }
+                    }
+
+                    document.getElementById("eval-status-badge").innerHTML = statusHTML;
+                    document.getElementById("eval-action").innerHTML = suggestedAction;
+
+                } else {
+                    document.getElementById("eval-overall-score").innerText = "-- / 10";
+                    document.getElementById("eval-reason").innerText = "No evaluation record detected in current partition. Execute an On-Demand Compliance Audit.";
+                    
+                    document.getElementById("eval-action").innerHTML = `
+                        <button onclick="triggerOnDemandAudit('${queryId}', this)" class="btn-solid" style="width: 100%; background: #2b6cb0; font-size: 13px;">
+                            Generate Evaluation Report
+                        </button>
+                    `;
+                }
+            } catch (err) {
+                showToast("System error during record fetch.", "error");
+                document.getElementById("evaluation-modal").style.display = "none";
+            }
+        }
+
+        async function triggerOnDemandAudit(queryId, btnElement) {
+            btnElement.innerText = "Generating Evaluation Report...";
+            btnElement.disabled = true;
+            btnElement.style.background = "#718096";
+
+            try {
+                const payload = {
+                    query_id: queryId,
+                    question_text: "Transcript fetched via secure trace...",
+                    answer_text: "Transcript fetched via secure trace..."
+                };
+
+                const res = await fetchSecure(`${BACKEND_URL}/admin/trigger_audit`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if(data.success) {
+                    showToast("Evaluation request submitted successfully.", "success");
+                    btnElement.innerText = "Task Executed Successfully";
+                } else {
+                    showToast("Audit pipeline failed to initialize.", "error");
+                    btnElement.innerText = "Generate Evaluation Report";
+                    btnElement.disabled = false;
+                }
+            } catch(e) {
+                showToast("Unable to connect to the server.", "error");
+            }
+        }
+
+        async function loadS3Docs() {
+            try {
+                const res = await fetchSecure(`${BACKEND_URL}/admin/s3_documents`);
+                const data = await res.json();
+                const tbody = document.getElementById("s3-docs-table-body");
+                tbody.innerHTML = "";
+                if(data.files && data.files.length > 0) {
+                    data.files.forEach(file => {
+                        const ext = file.name.split('.').pop().toUpperCase();
+                        tbody.innerHTML += `
+                            <tr class="s3-row" data-name="${file.name.toLowerCase()}">
+                                <td><strong style="color: #2d3748;">${file.name}</strong></td>
+                                <td><span class="badge filetype">${ext}</span></td>
+                                <td style="text-align: right;">
+                                    <button onclick="deleteFromS3('${file.name}')" class="btn-danger" style="margin-right: 8px;">Remove</button>
+                                    <button onclick="openWorkspace('${file.name}')" class="btn-outline">Open Viewer</button>
+                                </td>
+                            </tr>`;
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #a0aec0; padding: 30px;">No resources provisioned in this directory.</td></tr>`;
+                }
+            } catch (err) {}
+        }
+
+        function filterDocs() {
+            const searchTerm = document.getElementById("searchDocs").value.toLowerCase();
+            document.querySelectorAll(".s3-row").forEach(row => {
+                row.style.display = row.getAttribute("data-name").includes(searchTerm) ? "" : "none";
+            });
+        }
+
+        async function openWorkspace(filename) {
+            currentEditingFile = filename;
+            const textEditor = document.getElementById("liveDocEditor");
+            const richWrapper = document.getElementById("quillEditorWrapper");
+            const pdfConsole = document.getElementById("pdfAnnotatorConsole");
+            const previewWindow = document.getElementById("previewContentWindow");
+
+            textEditor.style.display = "none";
+            richWrapper.style.display = "none";
+            pdfConsole.style.display = "none";
+            previewWindow.innerHTML = "<div style='color:#a0aec0; text-align:center; padding: 40px;'>Loading viewer interface...</div>";
+
+            document.getElementById("doc-list-view").style.display = "none";
+            document.getElementById("doc-edit-view").style.display = "block";
+            document.getElementById("editing-doc-title").innerText = `Resource Editor: ${filename}`;
+
+            try {
+                const res = await fetchSecure(`${BACKEND_URL}/admin/s3_documents/${filename}`);
+                const data = await res.json();
+                const lowerFilename = filename.toLowerCase();
+
+                if (lowerFilename.endsWith(".txt") || lowerFilename.endsWith(".json")) {
+                    textEditor.style.display = "block";
+                    textEditor.value = data.content;
+                    previewWindow.innerText = data.content;
+                    
+                    textEditor.oninput = () => {
+                        previewWindow.innerText = textEditor.value;
+                        validateWorkspaceJSON();
+                    };
+                    validateWorkspaceJSON();
+                } 
+                else if (lowerFilename.endsWith(".docx")) {
+                    richWrapper.style.display = "flex";
+                    initQuillEngine();
+
+                    const responseBuffer = await fetch(data.url);
+                    const arrayBuffer = await responseBuffer.arrayBuffer();
+                    
+                    mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+                        .then(result => {
+                            quillInstance.root.innerHTML = result.value;
+                            previewWindow.innerHTML = result.value;
+                            
+                            quillInstance.on('text-change', () => {
+                                previewWindow.innerHTML = quillInstance.root.innerHTML;
+                            });
+                        });
+                    setWorkspaceValidationBar("true", "Rich Text Mode Active");
+                } 
+                else if (lowerFilename.endsWith(".pdf")) {
+                    pdfConsole.style.display = "block";
+                    previewWindow.innerHTML = `<object data="${data.url}" type="application/pdf" width="100%" height="100%"><div style="padding:20px; text-align:center; color:#718096;">Internal viewer unavailable. <a href="${data.url}" target="_blank" style="color:#00695c;">Access File Target</a></div></object>`;
+                    setWorkspaceValidationBar("neutral", "PDF Read-Only Mode");
+                } 
+                else {
+                    textEditor.style.display = "block";
+                    textEditor.value = data.content || "Read failure detected.";
+                    previewWindow.innerText = data.content || "Empty or invalid file stream.";
+                    textEditor.oninput = () => { previewWindow.innerText = textEditor.value; };
+                    setWorkspaceValidationBar("neutral", "Plain Text Parsing Active");
+                }
+            } catch (err) { 
+                showToast("System failed to open file.", "error"); 
+                closeEditor(); 
+            }
+        }
+
+        function validateWorkspaceJSON() {
+            if (currentEditingFile.toLowerCase().endsWith(".json")) {
+                try {
+                    JSON.parse(document.getElementById("liveDocEditor").value);
+                    setWorkspaceValidationBar("true", "Valid JSON Configuration");
+                } catch (e) {
+                    setWorkspaceValidationBar("false", `Format Error: ${e.message}`);
+                }
+            } else {
+                setWorkspaceValidationBar("neutral", "Standard File Format");
+            }
+        }
+
+        function setWorkspaceValidationBar(status, message) {
+            const bar = document.getElementById("validation-bar");
+            const saveBtn = document.getElementById("saveEditBtn");
+            if (status === "true") {
+                bar.style.background = "#f0fff4"; bar.style.color = "#276749"; bar.style.borderColor = "#9ae6b4";
+                saveBtn.disabled = false; saveBtn.style.opacity = "1";
+            } else if (status === "false") {
+                bar.style.background = "#fff5f5"; bar.style.color = "#c53030"; bar.style.borderColor = "#feb2b2";
+                saveBtn.disabled = true; saveBtn.style.opacity = "0.5";
+            } else {
+                bar.style.background = "#f8fafc"; bar.style.color = "#4a5568"; bar.style.borderColor = "#e2e8f0";
+                saveBtn.disabled = false; saveBtn.style.opacity = "1";
+            }
+            document.getElementById("validation-text").innerText = message;
+        }
+
+        async function saveDocumentToS3() {
+            let compiledContent = "";
+            const lowerFilename = currentEditingFile.toLowerCase();
+            
+            if (lowerFilename.endsWith(".txt") || lowerFilename.endsWith(".json") || !lowerFilename.includes(".")) {
+                compiledContent = document.getElementById("liveDocEditor").value;
+            } else if (lowerFilename.endsWith(".docx")) {
+                compiledContent = quillInstance.root.innerHTML;
+            } else if (lowerFilename.endsWith(".pdf")) {
+                compiledContent = document.getElementById("pdfAnnotationText").value;
+                showToast("Annotation recorded.", "success");
+                closeEditor();
+                return;
+            }
+
+            const btn = document.getElementById("saveEditBtn");
+            btn.innerText = "Processing...";
+            try {
+                await fetchSecure(`${BACKEND_URL}/admin/s3_documents/save`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filename: currentEditingFile, content: compiledContent })
+                });
+                showToast("Data refreshed successfully.", "success");
+                closeEditor();
+                loadS3Docs();
+            } catch (e) { showToast("Save operation failed.", "error"); }
+            btn.innerText = "Save Changes";
+        }
+
+        function closeEditor() {
+            document.getElementById("doc-edit-view").style.display = "none";
+            document.getElementById("doc-list-view").style.display = "block";
+            currentEditingFile = "";
+        }
+
+        async function uploadNewFile(event) {
+            const sourceNameInput = document.getElementById("uploadSourceName").value.trim();
+            const fileInput = document.getElementById("fileUploader");
+            
+            if(!fileInput.files[0]) { showToast("No file object selected.", "error"); return; }
+            
+            const file = fileInput.files[0];
+            const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            
+            let finalSourceName = sourceNameInput || file.name;
+            if (!finalSourceName.toLowerCase().endsWith(fileExtension)) {
+                finalSourceName += fileExtension;
+            }
+
+            const formData = new FormData();
+            formData.append("source", finalSourceName);
+            formData.append("file", file);
+
+            try {
+                const btn = event.target;
+                const originalText = btn.innerText;
+                btn.innerText = "Transmitting...";
+                btn.disabled = true;
+
+                await fetchSecure(`${BACKEND_URL}/admin/upload_document`, { method: "POST", body: formData });
+                
+                showToast("Data refreshed successfully.", "success");
+                document.getElementById("uploadSourceName").value = ""; 
+                fileInput.value = "";
+                loadS3Docs();
+                
+                btn.innerText = originalText;
+                btn.disabled = false;
+            } catch (e) { 
+                showToast("Upload pipeline failure.", "error"); 
+                event.target.innerText = "Upload Document";
+                event.target.disabled = false;
+            }
+        }
+
+        async function deleteFromS3(filename) {
+            const confirmed = await showConfirm(`Authorize complete removal of ${filename}?`);
+            if(!confirmed) return;
+            
+            try {
+                await fetchSecure(`${BACKEND_URL}/delete_source?source=${filename}`, { method: "DELETE" });
+                showToast("Data refreshed successfully.", "success");
+                loadS3Docs();
+            } catch(e) { showToast("Deletion routine failed.", "error"); }
+        }
+
+        checkAuth();
+    </script>
+</body>
+</html>

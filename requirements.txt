@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+boto3
+chromadb
+pydantic
+PyPDF2
+python-docx
+python-multipart
+python-dotenv

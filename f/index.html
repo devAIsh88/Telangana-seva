@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telangana Seva Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <header style="position: relative; padding: 25px; background: #00695c; color: white; text-align: center;">
+        
+        <a href="admin.html" style="position: absolute; top: 20px; right: 30px; color: white; text-decoration: none; font-size: 13px; font-weight: bold; border: 1px solid rgba(255,255,255,0.4); padding: 6px 12px; border-radius: 4px; transition: 0.2s; display: flex; align-items: center; gap: 5px;" 
+           onmouseover="this.style.background='rgba(255,255,255,0.15)'" 
+           onmouseout="this.style.background='transparent'">
+            <span style="font-size: 14px;">🔒</span> Admin Login
+        </a>
+
+        <h1>Telangana Seva Portal</h1>
+        <p>Citizen Services Information Portal</p>
+    </header>
+
+    <section class="hero">
+        <h2>Welcome to Telangana Citizen Services</h2>
+        <p>
+            Your centralized hub for accessing Telangana government services. 
+            Click the chat icon or select a service below to get instant, AI-powered assistance with applications, document requirements, and status updates.
+        </p>
+    </section>
+
+    <section class="services">
+        <h2>Popular Services</h2>
+        <div class="card-container">
+            <div class="card">Income Certificate</div>
+            <div class="card">Birth Certificate</div>
+            <div class="card">Pension Services</div>
+            <div class="card">Land Records</div>
+            <div class="card">MeeSeva Services</div>
+            <div class="card">Education Services</div>
+        </div>
+    </section>
+
+    <footer>
+        Telangana Seva Portal © 2026
+    </footer>
+
+    <div class="chat-button" id="openChatBtn">
+        💬
+    </div>
+
+    <div id="chatWindow" class="chat-window">
+        <div class="chat-header">
+            <span>Telangana Seva AI</span>
+            <span id="closeChat" onclick="closeChatbot()">✕</span>
+        </div>
+        
+        <div id="chatMessages" class="chat-messages">
+            <div class="message bot-message">
+                Hello! How can I help you today?
+            </div>
+        </div>
+
+        <div class="chat-input">
+            <input type="text" id="userInput" placeholder="Type your question...">
+            <button id="sendBtn">➤</button>
+        </div>
+    </div>
+
+    <div id="feedbackModal" class="modal-overlay">
+        <div class="feedback-box">
+            <h3>How was your experience?</h3>
+            <p style="color: #666; font-size: 14px; margin-top: 5px;">Your feedback helps us improve Telangana Seva AI.</p>
+            
+            <div class="stars" id="starContainer">
+                <span data-value="1">★</span>
+                <span data-value="2">★</span>
+                <span data-value="3">★</span>
+                <span data-value="4">★</span>
+                <span data-value="5">★</span>
+            </div>
+            
+            <textarea id="feedbackText" placeholder="Tell us how we can improve (optional)..."></textarea>
+            
+            <div class="feedback-actions">
+                <button id="skipFeedback" class="btn-secondary">Skip</button>
+                <button id="submitFeedback" class="btn-primary">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="js/script.js"></script>
+
+</body>
+</html>
